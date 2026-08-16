@@ -4,7 +4,7 @@ YouTube の視聴ページで、再生回数が一定以下の動画を関連動
 
 ## インストール
 
-Tampermonkeyのダッシュボードで下記のURLからスクリプトをインストールできる。
+[Tampermonkey](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)のダッシュボードで下記のURLからスクリプトをインストールできる。
 
 Tampermonkeyダッシュボード: `chrome-extension://dhdgffkkebhmkfjojejmpbldmpobfkfo/options.html#nav=utils`
 
