@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Improve YouTube Recommendations
-// @namespace    https://github.com/tonigo/custom_scripts
-// @version      1.0.0
+// @namespace    https://github.com/ToshihiroOgino/custom_scripts
+// @version      1.2.0
 // @description  YouTube の視聴ページで、再生回数が少ないゴミ動画を関連動画（おすすめ）欄から取り除く
-// @author       tonigo
+// @author       ToshihiroOgino
 // @match        https://www.youtube.com/*
 // @run-at       document-idle
 // @grant        none
@@ -19,15 +19,11 @@
   /** この再生回数「以下」の動画を関連動画から取り除く */
   const VIEW_COUNT_THRESHOLD = 1000;
 
-  /** 'remove' = DOM から削除する / 'hide' = display:none で隠すだけ */
-  const REMOVAL_MODE = "remove";
-
   /**
-   * 再生回数が読み取れないカード（ミックス、ライブ配信、広告など）も消すか。
-   * true にすると、YouTube がメタデータを描画し終える前のカードまで
-   * 巻き添えで消える可能性があるので注意。
+   * true にすると、非表示にした動画のタイトル・チャンネル名・再生回数を
+   * おすすめ一覧のすぐ上にサムネイル無しで一覧表示する。
    */
-  const REMOVE_UNKNOWN_VIEW_COUNT = false;
+  const VERBOSE = true;
 
   /** true にすると、判定結果を DevTools のコンソールに出す */
   const DEBUG = false;
@@ -49,8 +45,23 @@
     "#metadata-line span",
   ].join(", ");
 
+  /** カードのタイトル */
+  const TITLE_SELECTOR = "h3[title], #video-title";
+
+  /** カードのリンク */
+  const LINK_SELECTOR = "a.ytLockupMetadataViewModelTitle, a#video-title-link, a#thumbnail, a[href*='/watch']";
+
+  /** カードのチャンネル名 */
+  const CHANNEL_SELECTOR = [
+    "#channel-name #text", // 旧レイアウト
+    ".ytContentMetadataViewModelMetadataRow .ytContentMetadataViewModelMetadataText", // 現行レイアウト（1 行目）
+  ].join(", ");
+
   /** 処理済みカードに付ける dataset のキー（data-iyr-processed） */
   const PROCESSED_FLAG = "iyrProcessed";
+
+  /** VERBOSE パネルの状態をコンテナ要素にぶら下げるためのキー */
+  const PANEL_STATE = Symbol("iyrPanelState");
 
   /** 走査をまとめる間隔（ミリ秒） */
   const SCAN_DEBOUNCE_MS = 150;
@@ -75,6 +86,8 @@
     if (DEBUG) console.log("[improve-youtube-recommendations]", ...args);
   };
 
+  const textOf = (element) => (element?.getAttribute("aria-label") || element?.textContent || "").trim();
+
   /**
    * 再生回数の文字列を数値に変換する。
    * 再生回数として解釈できない場合は null を返す。
@@ -98,63 +111,195 @@
   };
 
   /**
-   * カードから再生回数を読み取る。
+   * カードの中から再生回数の要素を探す。
    * 現行レイアウトは表示テキストが「383」だけで aria-label に「383回視聴」が入るため、
    * aria-label → textContent の順で見る。
    */
-  const readViewCount = (card) => {
+  const findViewCount = (card) => {
     for (const element of card.querySelectorAll(VIEW_COUNT_SELECTOR)) {
-      const fromLabel = parseViewCount(element.getAttribute("aria-label"));
-      if (fromLabel !== null) return fromLabel;
-
-      const fromText = parseViewCount(element.textContent);
-      if (fromText !== null) return fromText;
+      const label = element.getAttribute("aria-label");
+      const count = parseViewCount(label) ?? parseViewCount(element.textContent);
+      if (count !== null) {
+        return { element, count, text: (label || element.textContent).trim() };
+      }
     }
     return null;
   };
 
-  const removeCard = (card) => {
-    if (REMOVAL_MODE === "hide") {
-      card.style.display = "none";
-    } else {
-      card.remove();
+  /** 再生回数と同じ行にある投稿日（「2 週間前」など）を拾う */
+  const findPublished = (viewCountElement) => {
+    const row = viewCountElement.parentElement;
+    if (!row) return null;
+
+    const others = [...row.querySelectorAll(VIEW_COUNT_SELECTOR)].filter((element) => element !== viewCountElement);
+    const text = textOf(others[others.length - 1]);
+    return text && parseViewCount(text) === null ? text : null;
+  };
+
+  /** VERBOSE 表示用に、カードから消す前の情報を取り出す */
+  const readCardInfo = (card, viewCount) => {
+    const channelElement = card.querySelector(CHANNEL_SELECTOR);
+    const channel = channelElement && channelElement !== viewCount.element ? textOf(channelElement) : "";
+
+    return {
+      title: textOf(card.querySelector(TITLE_SELECTOR)) || "(タイトル不明)",
+      href: card.querySelector(LINK_SELECTOR)?.getAttribute("href") ?? null,
+      channel: parseViewCount(channel) === null ? channel : "",
+      viewsText: viewCount.text,
+      published: findPublished(viewCount.element),
+    };
+  };
+
+  // --- VERBOSE パネル ---------------------------------------------------------
+
+  const PANEL_STYLE_ID = "iyr-removed-style";
+  const PANEL_CSS = `
+    .iyr-removed {
+      margin: 0 0 12px;
+      padding: 8px 12px;
+      border: 1px solid var(--yt-spec-10-percent-layer, rgba(128, 128, 128, 0.3));
+      border-radius: 12px;
+      font-family: "Roboto", "Arial", sans-serif;
+      color: var(--yt-spec-text-secondary, #909090);
+    }
+    .iyr-removed > summary {
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--yt-spec-text-primary, #f1f1f1);
+    }
+    .iyr-removed__list {
+      margin: 8px 0 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .iyr-removed__title {
+      display: block;
+      font-size: 12px;
+      line-height: 1.3;
+      color: var(--yt-spec-text-primary, #f1f1f1);
+      text-decoration: none;
+    }
+    .iyr-removed__title:hover {
+      text-decoration: underline;
+    }
+    .iyr-removed__meta {
+      margin-top: 2px;
+      font-size: 11px;
+      line-height: 1.3;
+    }
+  `;
+
+  const injectPanelStyle = () => {
+    if (document.getElementById(PANEL_STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = PANEL_STYLE_ID;
+    style.textContent = PANEL_CSS;
+    (document.head ?? document.documentElement).appendChild(style);
+  };
+
+  const createPanel = () => {
+    const panel = document.createElement("details");
+    panel.className = "iyr-removed";
+    // 開閉状態は再描画（renderPanel）では触らないので、手で開いたら開いたまま残る
+    panel.open = false;
+
+    const summary = document.createElement("summary");
+    const list = document.createElement("ol");
+    list.className = "iyr-removed__list";
+
+    panel.append(summary, list);
+    return { panel, summary, list };
+  };
+
+  /**
+   * おすすめ一覧のコンテナに対応するパネルを用意し、一覧のすぐ上に挿し込む。
+   * YouTube 側の再描画でパネルが外れても、呼ばれるたびに挿し直す。
+   */
+  const ensurePanel = (container) => {
+    let state = container[PANEL_STATE];
+    if (!state) {
+      injectPanelStyle();
+      state = { ...createPanel(), entries: [] };
+      container[PANEL_STATE] = state;
+    }
+
+    const parent = container.parentElement;
+    if (parent && state.panel.parentElement !== parent) {
+      parent.insertBefore(state.panel, container);
+    }
+    return state;
+  };
+
+  const renderPanel = (state) => {
+    state.summary.textContent = `非表示にした動画 ${state.entries.length} 件`;
+    state.list.textContent = "";
+
+    for (const entry of state.entries) {
+      const item = document.createElement("li");
+
+      const title = document.createElement(entry.href ? "a" : "span");
+      title.className = "iyr-removed__title";
+      title.textContent = entry.title;
+      if (entry.href) title.href = entry.href;
+
+      const meta = document.createElement("div");
+      meta.className = "iyr-removed__meta";
+      meta.textContent = [entry.channel, entry.viewsText, entry.published].filter(Boolean).join(" ・ ");
+
+      item.append(title, meta);
+      state.list.appendChild(item);
     }
   };
 
-  /** カードのタイトル（ログ用） */
-  const cardTitle = (card) =>
-    card.querySelector("h3[title], #video-title")?.getAttribute("title") ?? card.textContent.trim().slice(0, 40);
+  /** 消す直前のカードをパネルに記録する */
+  const recordRemoval = (card, viewCount) => {
+    const container = card.parentElement;
+    if (!container) return;
+
+    const state = ensurePanel(container);
+    state.entries.push(readCardInfo(card, viewCount));
+    renderPanel(state);
+  };
+
+  // --- 走査 -------------------------------------------------------------------
 
   const processCard = (card) => {
     if (card.dataset[PROCESSED_FLAG]) return;
 
-    const viewCount = readViewCount(card);
+    const viewCount = findViewCount(card);
 
-    if (viewCount === null) {
-      // メタデータが描画される前かもしれないので、処理済みの印は付けずに次回もう一度見る
-      if (!REMOVE_UNKNOWN_VIEW_COUNT) return;
-      log("再生回数不明のため削除:", cardTitle(card));
-      removeCard(card);
-      return;
-    }
+    // 再生回数が読めないカード（ミックス、ライブ配信、まだ描画途中のカードなど）は残す。
+    // 処理済みの印は付けず、次の走査でもう一度見る。
+    if (viewCount === null) return;
 
     card.dataset[PROCESSED_FLAG] = "1";
 
-    if (viewCount > VIEW_COUNT_THRESHOLD) {
-      log("残す:", viewCount, cardTitle(card));
+    if (viewCount.count > VIEW_COUNT_THRESHOLD) {
+      log("残す:", viewCount.count, textOf(card.querySelector(TITLE_SELECTOR)));
       return;
     }
 
-    log("削除:", viewCount, cardTitle(card));
-    removeCard(card);
+    log("削除:", viewCount.count, textOf(card.querySelector(TITLE_SELECTOR)));
+    if (VERBOSE) recordRemoval(card, viewCount);
+    card.remove();
   };
 
   const scan = () => {
+    const listContainers = new Set();
+
     for (const container of document.querySelectorAll(CONTAINER_SELECTOR)) {
       for (const card of container.querySelectorAll(CARD_SELECTOR)) {
+        if (card.parentElement?.[PANEL_STATE]) listContainers.add(card.parentElement);
         processCard(card);
       }
     }
+
+    // YouTube の再描画でパネルが外れることがあるので、毎回挿し直しておく
+    for (const container of listContainers) ensurePanel(container);
   };
 
   let scanTimer = null;
