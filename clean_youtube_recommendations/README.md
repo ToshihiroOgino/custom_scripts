@@ -29,25 +29,15 @@ trash.html は recommends.html に含まれる消したいElementの例。
 
 ### verbose 表示
 
-`true` のとき、おすすめ一覧のすぐ上に「非表示にした動画 N 件」という折りたたみパネルを差し込み、消した動画をサムネイル無しで一覧表示する。既定では折りたたんだ状態で、クリックすると開く。
+`true` のとき、おすすめ一覧のすぐ上に「非表示にした動画 N 件」という折りたたみパネルを差し込み、消した動画をサムネイル無しで一覧表示する。
 
 ```
 ▼ 非表示にした動画 1 件
-   Work Harder. Focus Deeper. | High-Performance Productivity Music | 40Hz Gamma Binaural Beats
-   Legendary Portal ・ 383回視聴 ・ 2 週間前
+   Hoge Title
+   Huga Channel ・ 123回視聴 ・ 2 週間前
 ```
 
 一度開けば、そのあと動画が追加で消されても開いたまま。タイトルは元動画へのリンクになっているので、消された動画をそのまま開ける。
-
-## 仕組み
-
-- 関連動画欄（`#secondary` / `#related`）の中のカード（`yt-lockup-view-model`、旧レイアウトの `ytd-compact-video-renderer`）を走査する。
-- 再生回数は、表示テキストが `383` のように数字だけになっているため `aria-label="383回視聴"` から読む。`5.4万回視聴` `1.2億回視聴` `1.2M views` のような単位付き表記にも対応。
-- ライブ配信の `1,234人が視聴中` / `1,234 watching` は再生回数として扱わない（消えない）。
-- 再生回数が読めないカード（ミックス、ライブ配信、まだ描画途中のカードなど）は消さずに残す。
-- SPA 遷移と無限スクロールに追従するため、MutationObserver と `yt-navigate-finish` イベントで再走査する。
-- `verbose` パネルはカードの一覧コンテナ（`ytd-item-section-renderer > #contents`）の直前に挿入する。YouTube 側の再描画でパネルが外れた場合は次の走査で挿し直す。
-- 再生中の動画（URL の `v=`）が変わると、おすすめ欄が総入れ替えになるのに合わせてパネルごと破棄し、非表示リストを 0 件から数え直す。YouTube は動画を切り替えても一覧コンテナの要素を使い回すため、URL を見て判定している。
 
 ## 変更履歴
 
