@@ -10,7 +10,7 @@
 // ==/UserScript==
 
 (() => {
-  'use strict';
+  "use strict";
 
   // ===========================================================================
   // 設定（ここだけ編集すればOK）
@@ -20,7 +20,7 @@
   const VIEW_COUNT_THRESHOLD = 1000;
 
   /** 'remove' = DOM から削除する / 'hide' = display:none で隠すだけ */
-  const REMOVAL_MODE = 'remove';
+  const REMOVAL_MODE = "remove";
 
   /**
    * 再生回数が読み取れないカード（ミックス、ライブ配信、広告など）も消すか。
@@ -37,29 +37,29 @@
   // ===========================================================================
 
   /** 関連動画リストのコンテナ。この中だけを走査する */
-  const CONTAINER_SELECTOR = '#secondary, #related';
+  const CONTAINER_SELECTOR = "#secondary, #related";
 
   /** おすすめカード 1 枚にあたる要素 */
-  const CARD_SELECTOR = 'yt-lockup-view-model, ytd-compact-video-renderer';
+  const CARD_SELECTOR = "yt-lockup-view-model, ytd-compact-video-renderer";
 
   /** カードの中で再生回数が書かれている要素 */
   const VIEW_COUNT_SELECTOR = [
-    '.ytContentMetadataViewModelMetadataText', // 現行レイアウト
-    '#metadata-line .inline-metadata-item', // 旧レイアウト
-    '#metadata-line span',
-  ].join(', ');
+    ".ytContentMetadataViewModelMetadataText", // 現行レイアウト
+    "#metadata-line .inline-metadata-item", // 旧レイアウト
+    "#metadata-line span",
+  ].join(", ");
 
   /** 処理済みカードに付ける dataset のキー（data-iyr-processed） */
-  const PROCESSED_FLAG = 'iyrProcessed';
+  const PROCESSED_FLAG = "iyrProcessed";
 
   /** 走査をまとめる間隔（ミリ秒） */
   const SCAN_DEBOUNCE_MS = 150;
 
   /** 「5.4万回視聴」「1.2M views」などの単位 */
   const UNIT_FACTORS = {
-    '億': 1e8,
-    '万': 1e4,
-    '千': 1e3,
+    億: 1e8,
+    万: 1e4,
+    千: 1e3,
     k: 1e3,
     m: 1e6,
     b: 1e9,
@@ -72,7 +72,7 @@
   const ZERO_VIEW_PATTERN = /視聴回数なし|\bno views\b/i;
 
   const log = (...args) => {
-    if (DEBUG) console.log('[improve-youtube-recommendations]', ...args);
+    if (DEBUG) console.log("[improve-youtube-recommendations]", ...args);
   };
 
   /**
@@ -87,7 +87,7 @@
     const matched = text.match(VIEW_COUNT_PATTERN);
     if (!matched) return null;
 
-    const value = Number(matched[1].replace(/,/g, ''));
+    const value = Number(matched[1].replace(/,/g, ""));
     if (!Number.isFinite(value)) return null;
 
     const unit = matched[2];
@@ -104,7 +104,7 @@
    */
   const readViewCount = (card) => {
     for (const element of card.querySelectorAll(VIEW_COUNT_SELECTOR)) {
-      const fromLabel = parseViewCount(element.getAttribute('aria-label'));
+      const fromLabel = parseViewCount(element.getAttribute("aria-label"));
       if (fromLabel !== null) return fromLabel;
 
       const fromText = parseViewCount(element.textContent);
@@ -114,8 +114,8 @@
   };
 
   const removeCard = (card) => {
-    if (REMOVAL_MODE === 'hide') {
-      card.style.display = 'none';
+    if (REMOVAL_MODE === "hide") {
+      card.style.display = "none";
     } else {
       card.remove();
     }
@@ -123,8 +123,7 @@
 
   /** カードのタイトル（ログ用） */
   const cardTitle = (card) =>
-    card.querySelector('h3[title], #video-title')?.getAttribute('title') ??
-    card.textContent.trim().slice(0, 40);
+    card.querySelector("h3[title], #video-title")?.getAttribute("title") ?? card.textContent.trim().slice(0, 40);
 
   const processCard = (card) => {
     if (card.dataset[PROCESSED_FLAG]) return;
@@ -134,19 +133,19 @@
     if (viewCount === null) {
       // メタデータが描画される前かもしれないので、処理済みの印は付けずに次回もう一度見る
       if (!REMOVE_UNKNOWN_VIEW_COUNT) return;
-      log('再生回数不明のため削除:', cardTitle(card));
+      log("再生回数不明のため削除:", cardTitle(card));
       removeCard(card);
       return;
     }
 
-    card.dataset[PROCESSED_FLAG] = '1';
+    card.dataset[PROCESSED_FLAG] = "1";
 
     if (viewCount > VIEW_COUNT_THRESHOLD) {
-      log('残す:', viewCount, cardTitle(card));
+      log("残す:", viewCount, cardTitle(card));
       return;
     }
 
-    log('削除:', viewCount, cardTitle(card));
+    log("削除:", viewCount, cardTitle(card));
     removeCard(card);
   };
 
@@ -177,8 +176,8 @@
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
   // YouTube のページ遷移イベント
-  window.addEventListener('yt-navigate-finish', scheduleScan);
-  window.addEventListener('yt-page-data-updated', scheduleScan);
+  window.addEventListener("yt-navigate-finish", scheduleScan);
+  window.addEventListener("yt-page-data-updated", scheduleScan);
 
   scheduleScan();
 })();
