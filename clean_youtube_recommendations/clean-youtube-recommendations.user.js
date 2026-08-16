@@ -60,7 +60,7 @@
   const ZERO_VIEW_PATTERN = /視聴回数なし|\bno views\b/i;
 
   const log = (...args) => {
-    if (OPTIONS.debug) console.log("[improve-youtube-recommendations]", ...args);
+    if (OPTIONS.debug) console.log("[clean-youtube-recommendations]", ...args);
   };
 
   const textOf = (element) => (element?.getAttribute("aria-label") || element?.textContent || "").trim();
