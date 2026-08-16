@@ -1,4 +1,4 @@
-# Improve YouTube Recommendations
+# Clean YouTube Recommendations
 
 ## What I Want
 
@@ -15,7 +15,7 @@ trash.html は recommends.html に含まれる消したいElementの例。
 ## 使い方
 
 1. Tampermonkey のダッシュボードで「新規スクリプトを作成」
-2. [improve-youtube-recommendations.user.js](improve-youtube-recommendations.user.js) の中身をまるごと貼り付けて保存
+2. [clean-youtube-recommendations.user.js](clean-youtube-recommendations.user.js) の中身をまるごと貼り付けて保存
 
 ## 設定
 

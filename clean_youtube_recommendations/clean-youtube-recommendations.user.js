@@ -1,9 +1,7 @@
 // ==UserScript==
-// @name         Improve YouTube Recommendations
-// @namespace    https://github.com/ToshihiroOgino/custom_scripts
+// @name         Clean YouTube Recommendations
 // @version      1.2.0
 // @description  YouTube の視聴ページで、再生回数が少ないゴミ動画を関連動画欄から取り除く
-// @author       ToshihiroOgino
 // @match        https://www.youtube.com/*
 // @run-at       document-idle
 // @grant        none
@@ -13,7 +11,7 @@
   "use strict";
 
   const OPTIONS = {
-    /** この再生回数「以下」の動画を関連動画から取り除く */
+    /** この再生回数以下の動画を関連動画から取り除く */
     viewCountThreshold: 1000,
 
     /** 非表示にした動画の一覧をおすすめ欄の上に表示する */
