@@ -1,10 +1,16 @@
 // ==UserScript==
 // @name         Clean YouTube Recommendations
+// @namespace    https://github.com/ToshihiroOgino/custom_scripts
 // @version      1.2.1
 // @description  YouTube の視聴ページで、再生回数が少ない動画を関連動画欄から取り除く
+// @author       ToshihiroOgino
 // @match        https://www.youtube.com/*
 // @run-at       document-idle
 // @grant        none
+// @homepageURL  https://github.com/ToshihiroOgino/custom_scripts
+// @supportURL   https://github.com/ToshihiroOgino/custom_scripts/issues
+// @downloadURL  https://raw.githubusercontent.com/ToshihiroOgino/custom_scripts/main/clean_youtube_recommendations/clean-youtube-recommendations.user.js
+// @updateURL    https://raw.githubusercontent.com/ToshihiroOgino/custom_scripts/main/clean_youtube_recommendations/clean-youtube-recommendations.user.js
 // ==/UserScript==
 
 (() => {
