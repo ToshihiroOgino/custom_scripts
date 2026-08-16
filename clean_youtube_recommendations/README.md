@@ -1,4 +1,4 @@
- Clean YouTube Recommendations
+# Clean YouTube Recommendations
 
 YouTube の視聴ページで、再生回数が一定以下の動画を関連動画欄から取り除く Tampermonkey 用のユーザースクリプト。SPA 遷移や無限スクロールにも追従して、あとから読み込まれたおすすめにも適用される。
 
