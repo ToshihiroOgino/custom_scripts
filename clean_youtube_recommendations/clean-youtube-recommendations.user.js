@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Clean YouTube Recommendations
-// @version      1.2.0
+// @version      1.2.1
 // @description  YouTube の視聴ページで、再生回数が少ないゴミ動画を関連動画欄から取り除く
 // @match        https://www.youtube.com/*
 // @run-at       document-idle
@@ -177,12 +177,15 @@
     return { panel, summary, list };
   };
 
+  const panelStates = new Set();
+
   const ensurePanel = (container) => {
     let state = container[PANEL_STATE];
     if (!state) {
       injectPanelStyle();
-      state = { ...createPanel(), entries: [] };
+      state = { ...createPanel(), container, entries: [] };
       container[PANEL_STATE] = state;
+      panelStates.add(state);
     }
 
     const parent = container.parentElement;
@@ -213,6 +216,14 @@
     }
   };
 
+  const clearPanels = () => {
+    for (const state of panelStates) {
+      state.panel.remove();
+      delete state.container[PANEL_STATE];
+    }
+    panelStates.clear();
+  };
+
   const recordRemoval = (card, viewCount) => {
     const container = card.parentElement;
     if (!container) return;
@@ -241,7 +252,22 @@
     card.remove();
   };
 
+  const currentPageKey = () => `${location.pathname}?${new URLSearchParams(location.search).get("v") ?? ""}`;
+
+  let pageKey = currentPageKey();
+
+  const syncPage = () => {
+    const key = currentPageKey();
+    if (key === pageKey) return;
+
+    log("ページ切り替えを検知:", pageKey, "->", key);
+    pageKey = key;
+    clearPanels();
+  };
+
   const scan = () => {
+    syncPage();
+
     const listContainers = new Set();
 
     for (const container of document.querySelectorAll(CONTAINER_SELECTOR)) {
