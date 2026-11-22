@@ -1,6 +1,6 @@
 # GitHub Hide Whitespace
 
-GitHub の PR・コミット・compare の diff ページを開いたとき、自動で `?w=1` を付けて空白だけの変更を非表示にする Tampermonkey 用のユーザースクリプト。
+GitHub の PR・コミット・compare の diff ページを開いたとき、リンクと URL に自動で `?w=1` を付けて空白だけの変更を非表示にする Tampermonkey 用のユーザースクリプト。
 
 ## インストール
 
@@ -13,3 +13,4 @@ GitHub の PR・コミット・compare の diff ページを開いたとき、�
 | Version | 変更内容 |
 | ------- | -------- |
 | 1.0.0   | 公開 |
+| 1.1.0   | diff へのリンクに `?w=1` を付与する方式に変更 |

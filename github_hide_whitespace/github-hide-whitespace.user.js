@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         GitHub Hide Whitespace
 // @namespace    https://github.com/ToshihiroOgino/custom_scripts
-// @version      1.0.0
-// @description  GitHub の diff ページで空白の変更を常に非表示にする
+// @version      1.1.0
+// @description  GitHub の diff ページへのリンクに ?w=1 を付けて空白の変更を非表示にする
 // @author       ToshihiroOgino
 // @match        https://github.com/*
 // @run-at       document-start
@@ -16,26 +16,52 @@
 (() => {
   "use strict";
 
-  const DIFF_PATH = /^\/[^/]+\/[^/]+\/(pull\/\d+\/(changes|files)|commit\/[0-9a-f]+|compare\/.+)$/;
+  const DIFF_PATH =
+    /^\/[^/]+\/[^/]+\/(pull\/\d+\/(changes|files)(\/.*)?|pull\/\d+\/commits\/[0-9a-f]+|commit\/[0-9a-f]+|compare\/.+)$/;
 
-  const apply = () => {
-    if (!DIFF_PATH.test(location.pathname)) return;
-    const url = new URL(location.href);
-    if (url.searchParams.has("w")) return;
+  const withWhitespaceHidden = (href) => {
+    const url = new URL(href, location.href);
+    if (url.origin !== location.origin) return null;
+    if (!DIFF_PATH.test(url.pathname) || url.searchParams.has("w")) return null;
     url.searchParams.set("w", "1");
-    location.replace(url.toString());
+    return url.toString();
   };
 
-  for (const method of ["pushState", "replaceState"]) {
-    const original = history[method];
-    history[method] = function (...args) {
-      const result = original.apply(this, args);
-      apply();
-      return result;
-    };
-  }
+  const findAnchor = (event) => {
+    const anchor = event.target.closest?.("a[href]");
+    return anchor instanceof HTMLAnchorElement ? anchor : null;
+  };
 
-  apply();
-  document.addEventListener("turbo:load", apply);
-  window.addEventListener("popstate", apply);
+  const isPlainClick = (event, anchor) =>
+    event.button === 0 &&
+    !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) &&
+    (!anchor.target || anchor.target === "_self");
+
+  const redirect = withWhitespaceHidden(location.href);
+  if (redirect) location.replace(redirect);
+
+  document.addEventListener(
+    "mousedown",
+    (event) => {
+      const anchor = findAnchor(event);
+      if (!anchor || isPlainClick(event, anchor)) return;
+      const target = withWhitespaceHidden(anchor.href);
+      if (target) anchor.href = target;
+    },
+    true,
+  );
+
+  document.addEventListener(
+    "click",
+    (event) => {
+      const anchor = findAnchor(event);
+      if (!anchor || !isPlainClick(event, anchor)) return;
+      const target = withWhitespaceHidden(anchor.href);
+      if (!target) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      location.assign(target);
+    },
+    true,
+  );
 })();
