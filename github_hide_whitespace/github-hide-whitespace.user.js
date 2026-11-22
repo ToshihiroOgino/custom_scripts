@@ -26,6 +26,15 @@
     location.replace(url.toString());
   };
 
+  for (const method of ["pushState", "replaceState"]) {
+    const original = history[method];
+    history[method] = function (...args) {
+      const result = original.apply(this, args);
+      apply();
+      return result;
+    };
+  }
+
   apply();
   document.addEventListener("turbo:load", apply);
   window.addEventListener("popstate", apply);
