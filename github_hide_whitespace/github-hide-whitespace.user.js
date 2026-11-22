@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Hide Whitespace
 // @namespace    https://github.com/ToshihiroOgino/custom_scripts
-// @version      1.1.0
+// @version      1.2.0
 // @description  GitHub の diff ページへのリンクに ?w=1 を付けて空白の変更を非表示にする
 // @author       ToshihiroOgino
 // @match        https://github.com/*
@@ -36,9 +36,6 @@
     event.button === 0 &&
     !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) &&
     (!anchor.target || anchor.target === "_self");
-
-  const redirect = withWhitespaceHidden(location.href);
-  if (redirect) location.replace(redirect);
 
   document.addEventListener(
     "mousedown",
